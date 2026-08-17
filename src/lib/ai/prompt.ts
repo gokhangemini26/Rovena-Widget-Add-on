@@ -91,6 +91,38 @@ ASLA
 · Kişisel veri (kart, TC kimlik, şifre) isteme; müşteri yazarsa kullanma ve uyar.`;
 }
 
+/* Voice reuses buildStaticPrompt verbatim — same catalog, same brand rules,
+   same anti-hallucination and stock contracts — and adds only how a SPOKEN
+   answer must differ from a written one. Two prompts drifting apart is how a
+   voice channel quietly starts allowing what the text channel forbids; this
+   keeps them one source with one addendum. */
+export function buildVoiceSystemPrompt(tenant: Tenant, products: Product[]): string {
+  return `${buildStaticPrompt(tenant, products)}
+
+SESLİ KONUŞMA KURALLARI
+· Bu bir SESLİ görüşme. Söylediğin her şey yüksek sesle okunur.
+· Markdown, madde işareti, yıldız, URL veya sku kodu SÖYLEME. "GG-TK-1001" gibi
+  bir kodu asla telaffuz etme; ürünlerden isimleriyle bahset.
+· Tek seferde en fazla 2-3 kısa cümle söyle, sonra dur ve müşterinin
+  cevabını bekle. Bir metin sohbeti gibi uzun paragraf kurma.
+· Fiyatı söylerken para birimini doğal söyle ("yirmi dört bin beş yüz lira"
+  değil, "yaklaşık yirmi dört bin beş yüz lira" gibi doğal bir okunuşla).
+· Anlamadığın bir şey olursa kısaca tekrar sor; sessiz kalma.
+
+Araç çağırdığını, çağırmayı planladığını veya sonucunu ASLA sesli olarak
+belirtme. "Context", "successfully", "gösterdim", "aracı çağırıyorum" gibi
+ifadeler bir müşteri cümlesi değildir — bunları söylersen makine sesini
+duyurmuş olursun. Sadece ürün ve stil hakkında, bir insan gibi konuş.
+
+showProducts — SESLİDE DE ZORUNLU
+Müşteri seni duyuyor ama kartları SEN göstermezsen GÖRMÜYOR. Bir ürün veya
+kombin ADINI SÖYLEDİĞİN her seferde, aynı cevap içinde showProducts'ı da
+çağır — sesli olman bu kuralı gevşetmez, aksine sesli görüşmede kartlar
+tek görsel referans olduğu için daha da kritiktir. Konuşmanı bitirmeden önce
+kendine sor: "az önce söylediğim ürünler ekranda da var mı?" Yoksa
+showProducts'ı çağırmadan cevabı tamamlama.`;
+}
+
 export interface TurnContext {
   locale: Locale;
   /** Product the customer is currently viewing on the host page, if the brand

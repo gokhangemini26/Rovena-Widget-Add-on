@@ -207,6 +207,73 @@ shapes bursts.
 
 ---
 
+## Voice
+
+`src/lib/voice/` adds real-time voice on the same catalog, tools, and stock
+contract as text chat — a customer who switches from typing to talking mid-
+conversation gets identical grounding either way. Off by default per tenant
+(`tenant.voice.enabled`); the source product gates voice behind sign-in
+instead, which the widget cannot do (a brand's storefront visitor is
+anonymous by design), so the blast radius of an anonymous token mint is
+bounded by the origin allowlist, the same rate limiter chat uses, and the
+ephemeral token's own short lifetimes (2 minutes to open a session, 30
+minutes max) rather than by a login wall.
+
+**Deliberately not ported:** the source product's Silero VAD-based local
+barge-in and echo-suppression layer (~450 lines across two files there). This
+widget instead mutes the outgoing mic stream while the player worklet reports
+audio is playing (plus a short drain tail for room echo) and relies on
+Gemini's own server-side automatic activity detection for turn-taking. That
+trades barge-in — the customer cannot interrupt the stylist mid-sentence —
+for not needing to ship and tune an ML VAD model and its asset files. Worth
+revisiting if a brand explicitly asks for it.
+
+Three things found by building it, none visible from reading the finished
+code:
+
+**A race condition, not a config error.** `ai.live.connect()`'s own
+`callbacks.onopen` can fire before the `await` that assigns the session
+handle resolves. The first version wired the widget's own `onOpen` (which
+fires the opening greeting) directly to that callback; the greeting call
+landed on a session reference that was still `null`, so the socket visibly
+opened — `setupComplete` and periodic `sessionResumptionUpdate` messages kept
+arriving — while nothing was ever said, with no exception anywhere to point
+at it. The fix: fire `onOpen` after `connect()` itself returns, not from the
+transport's own open event.
+
+**`showProducts` is far less reliable inside one continuous Live turn than
+inside the text route's multi-round tool loop.** The model calls read tools
+(`searchProducts`, `getProducts`) to ground what it says about as reliably in
+voice as in text — confirmed by watching `/api/voice/tool` actually get hit —
+but it would frequently describe a product by name and never call
+`showProducts` to put a card on screen for it, even with an explicit,
+repeatedly strengthened prompt rule demanding it every time. Rather than keep
+tuning a prompt against a model behaviour, `useVoiceSession` tracks every sku
+a read tool returned during the turn and — if the turn ends without the model
+ever having called `showProducts` itself — shows them anyway (skipped when a
+single search returned more than a few items, which is browsing rather than a
+recommendation). A card the customer didn't hear asked for is a smaller
+failure than a product named aloud that never appears.
+
+**The model narrates its own tool calls, in prose that varies every time.**
+Verified live, two different sentences for what was mechanically the same
+event: *"…Nasıl, beğendiniz mi? Context: showProducts called successfully."*
+and, in a later turn, *"…Bu kombini düşünür müsünüz? showProducts function ile
+ürünleri gösteriyorum."* Nothing in either tool response contains those
+words — the model is paraphrasing its own internal state into speech, a
+different way each time, which is exactly the failure class the source
+product's `system-voice.ts` was built against and documented the same
+conclusion for: a filter built from one observed phrasing misses the next
+one. `src/lib/voice/transcriptFilter.ts` matches on the tool NAME instead —
+`showProducts`, `addToCart` and the rest are camelCase English identifiers
+that cannot occur in genuine customer-facing prose in any of the widget's four
+languages, so any sentence containing one is machinery by construction,
+independent of the verb wrapped around it. This is a display-only filter, not
+a fix: it cannot un-speak audio the customer already heard, which is why the
+prompt rule in `src/lib/ai/prompt.ts` (*"Araç çağırdığını… ASLA sesli olarak
+belirtme"*) is the half that actually matters and this is only the net
+underneath it.
+
 ## What is deliberately absent
 
 **Ranking.** The catalog narrows honestly; the model does the styling judgement.

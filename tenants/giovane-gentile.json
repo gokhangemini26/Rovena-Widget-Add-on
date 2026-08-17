@@ -95,6 +95,9 @@
   "cart": {
     "mode": "redirect"
   },
+  "voice": {
+    "enabled": true
+  },
   "limits": {
     "messagesPerSession": 40,
     "requestsPerMinute": 20,

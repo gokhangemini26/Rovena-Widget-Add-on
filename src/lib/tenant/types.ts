@@ -89,6 +89,15 @@ export interface TenantInventory {
   lowStockThreshold: number;
 }
 
+/** Real-time voice, on top of the same catalog and tool surface as text chat.
+    Off by default: a brand opts in per tenant rather than every deployment
+    paying for the (much more expensive) audio tokens by accident. */
+export interface TenantVoice {
+  enabled: boolean;
+  /** Greeting spoken first, per locale. Falls back to persona.greeting. */
+  greeting?: Partial<Record<Locale, string>>;
+}
+
 /** How the widget talks back to the host page. */
 export interface TenantCart {
   /** "redirect" needs zero work from the brand; "callback" calls a global
@@ -114,6 +123,7 @@ export interface Tenant {
   feed: TenantFeed;
   inventory: TenantInventory;
   cart: TenantCart;
+  voice: TenantVoice;
   limits: {
     /** Messages per visitor session before the widget asks them to start over.
         Abuse ceiling, not a product decision — see docs/ARCHITECTURE.md. */
@@ -136,6 +146,7 @@ export interface PublicTenantConfig {
     "displayName" | "greeting" | "suggestions" | "defaultLocale" | "locales"
   >;
   cart: { mode: TenantCart["mode"]; callbackName?: string };
+  voice: { enabled: boolean };
 }
 
 export function toPublicConfig(t: Tenant): PublicTenantConfig {
@@ -151,5 +162,6 @@ export function toPublicConfig(t: Tenant): PublicTenantConfig {
       locales: t.persona.locales,
     },
     cart: { mode: t.cart.mode, callbackName: t.cart.callbackName },
+    voice: { enabled: t.voice?.enabled ?? false },
   };
 }

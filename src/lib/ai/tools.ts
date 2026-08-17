@@ -1,100 +1,23 @@
 import "server-only";
-import { Type, type FunctionDeclaration } from "@google/genai";
 import type { CatalogProvider } from "@/lib/catalog";
 import { project } from "@/lib/catalog/types";
 import { getInventory, stockPhrasing } from "@/lib/inventory/InventoryProvider";
 import type { Tenant } from "@/lib/tenant/types";
 
-/* Tool surface. Read tools resolve server-side and loop back into the model;
-   showProducts and addToCart are UI intents streamed to the widget instead.
+/* Tool EXECUTION — server-only, since it touches the catalog and inventory
+   endpoints (which may hold a credential read from process.env). The tool
+   DECLARATIONS themselves are client-safe and live in ./toolSchema so the
+   voice client can send the identical schema to Gemini Live without pulling
+   this file (and its server-only guard) into the browser bundle.
+
+   Read tools resolve server-side and loop back into the model; showProducts
+   and addToCart are UI intents streamed to the widget instead.
 
    Every tool that names a product takes a sku and is resolved against the
    tenant's own catalog, so a hallucinated sku returns a miss the model must
    recover from rather than a product card the customer sees. */
 
-export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
-  {
-    name: "searchProducts",
-    description:
-      "Katalogda arama yapar. Kombin kurmadan veya ürün önermeden önce çağrılır. " +
-      "Sonuç boşsa daha geniş kriterle tekrar dene.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        department: { type: Type.STRING, enum: ["women", "men", "unisex"] },
-        garmentTypes: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.STRING,
-            enum: ["outerwear", "top", "bottom", "dress", "suit", "shoes", "bag", "accessory"],
-          },
-          description: "Kombinin hangi katmanını aradığın.",
-        },
-        colorFamilies: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
-          description: "black, white, grey, navy, blue, brown, green, red, pink, purple, yellow, orange",
-        },
-        text: { type: Type.STRING, description: "Serbest metin: ürün adı, kategori, kumaş." },
-        maxPrice: { type: Type.NUMBER, description: "Üst fiyat sınırı, para biriminin ana birimi cinsinden." },
-        season: { type: Type.STRING, enum: ["spring", "summer", "autumn", "winter"] },
-      },
-    },
-  },
-  {
-    name: "getProducts",
-    description: "Belirli sku'ların tam detayını getirir.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: { skus: { type: Type.ARRAY, items: { type: Type.STRING } } },
-      required: ["skus"],
-    },
-  },
-  {
-    name: "checkStock",
-    description:
-      "Beden bulunurluğunu mağaza sisteminden sorar. Bulunurluk hakkında konuşmanın TEK yolu budur. " +
-      "Dönen ifadeyi aynen aktar, güçlendirme.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        sku: { type: Type.STRING },
-        sizes: { type: Type.ARRAY, items: { type: Type.STRING } },
-      },
-      required: ["sku", "sizes"],
-    },
-  },
-  {
-    name: "showProducts",
-    description:
-      "Ürün kartlarını müşteriye gösterir. Bir kombin önerdiğinde mutlaka çağır — " +
-      "aksi halde müşteri bahsettiğin parçaları göremez.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        skus: { type: Type.ARRAY, items: { type: Type.STRING } },
-        title: { type: Type.STRING, description: "Kısa başlık, ör. 'Akşam yemeği için'." },
-      },
-      required: ["skus"],
-    },
-  },
-  {
-    name: "addToCart",
-    description: "Müşteri açıkça istediğinde sepete ekler. Kendiliğinden çağırma.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        sku: { type: Type.STRING },
-        size: { type: Type.STRING },
-        quantity: { type: Type.NUMBER },
-      },
-      required: ["sku", "size"],
-    },
-  },
-];
-
-export const READ_TOOLS = new Set(["searchProducts", "getProducts", "checkStock"]);
-export const UI_TOOLS = new Set(["showProducts", "addToCart"]);
+export { TOOL_DECLARATIONS, READ_TOOLS, UI_TOOLS } from "./toolSchema";
 
 const MAX_SEARCH_RESULTS = 12;
 

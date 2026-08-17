@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale, PublicTenantConfig } from "@/lib/tenant/types";
 import { ProductCards, type ProductCard } from "./ProductCards";
 import { Composer } from "./Composer";
+import { useVoiceSession } from "@/lib/voice/useVoiceSession";
 
 /* ══════════════════════════════════════════════════════════════════════════
    The widget itself. Runs inside the iframe on the brand's page.
@@ -30,6 +31,8 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const blocksRef = useRef<Block[]>(blocks);
+  blocksRef.current = blocks;
   // Session id identifies a conversation for metering and rate limiting. It is
   // random per widget load and never leaves this origin — no cross-site value.
   const sessionId = useMemo(
@@ -79,7 +82,22 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [blocks, streaming]);
 
-  /* ── conversation ─────────────────────────────────────────────────────── */
+  /* ── shared: resolve a sku the assistant names to whatever the widget has
+     already shown, so a proactive addToCart (voice or text) can still send
+     the host a redirect URL even though the tool schema itself never carries
+     one — the model should never have to know URLs. ─────────────────────── */
+  const findShownProduct = useCallback((sku: string): ProductCard | undefined => {
+    for (let i = blocksRef.current.length - 1; i >= 0; i--) {
+      const b = blocksRef.current[i];
+      if (b.kind === "products") {
+        const hit = b.products.find((p) => p.sku === sku);
+        if (hit) return hit;
+      }
+    }
+    return undefined;
+  }, []);
+
+  /* ── conversation (text) ──────────────────────────────────────────────── */
 
   const send = useCallback(
     async (text: string) => {
@@ -180,7 +198,9 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
                 }
               }
               if (tool.name === "addToCart") {
-                postToHost("add-to-cart", tool.args);
+                const sku = String(tool.args.sku ?? "");
+                const shown = findShownProduct(sku);
+                postToHost("add-to-cart", { ...tool.args, url: shown?.url });
               }
             }
 
@@ -193,7 +213,7 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
         setStreaming(false);
       }
     },
-    [blocks, config.slug, context, locale, postToHost, sessionId, streaming],
+    [blocks, config.slug, context, locale, postToHost, sessionId, streaming, findShownProduct],
   );
 
   const onProductClick = useCallback(
@@ -208,6 +228,72 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
       }),
     [postToHost],
   );
+
+  /* ── conversation (voice) ─────────────────────────────────────────────── */
+
+  const voiceEnabled = config.voice.enabled;
+  const [voiceFatal, setVoiceFatal] = useState<string | null>(null);
+
+  const voice = useVoiceSession({
+    tenant: config.slug,
+    sessionId,
+    locale,
+    currentSku: context.sku ?? undefined,
+    cartSkus: context.cart,
+    onTranscript: (role, text) => {
+      setBlocks((prev) => [...prev, { kind: "text", role: role === "user" ? "user" : "assistant", text }]);
+    },
+    onShowProducts: (skus, title) => {
+      // Voice tool calls carry skus only (no full card data, unlike the text
+      // route's server-side enrichment) — resolve them the same way the read
+      // tool already did over /api/voice/tool, via one more lookup here so
+      // the cards render with images/prices instead of a bare list.
+      void fetch("/api/voice/tool", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenant: config.slug, name: "getProducts", args: { skus } }),
+      })
+        .then((r) => r.json())
+        .then((data: { products?: { sku: string; name: string; price: string }[] }) => {
+          // getProducts returns the trimmed model-facing projection (no image/
+          // url) — cross-reference against anything already shown for the
+          // richer fields, falling back to a text-only card otherwise.
+          const products: ProductCard[] = (data.products ?? []).map((p) => {
+            const known = findShownProduct(p.sku);
+            return (
+              known ?? {
+                sku: p.sku,
+                name: p.name,
+                price: p.price,
+                image: "",
+                url: "",
+                sizes: [],
+              }
+            );
+          });
+          if (products.length) {
+            setBlocks((prev) => [...prev, { kind: "products", title, products }]);
+            postToHost("event", { event: "products_shown" });
+          }
+        })
+        .catch(() => {});
+    },
+    onAddToCart: (args) => {
+      const shown = findShownProduct(args.sku);
+      postToHost("add-to-cart", { ...args, url: shown?.url });
+    },
+    onError: (message) => setVoiceFatal(message),
+  });
+
+  const toggleVoice = useCallback(() => {
+    setVoiceFatal(null);
+    if (voice.status === "idle" || voice.status === "error") void voice.start();
+    else voice.stop();
+  }, [voice]);
+
+  // Voice owns the turn while active; a stray text send would open a second,
+  // unrelated conversation context against /api/chat.
+  const voiceActive = voice.status !== "idle" && voice.status !== "error";
 
   return (
     <div className="rovena-root">
@@ -253,9 +339,10 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
           )}
 
         {fatal && <div className="rv-error" role="alert">{fatal}</div>}
+        {voiceFatal && <div className="rv-error" role="alert">{voiceFatal}</div>}
       </div>
 
-      {!blocks.length && suggestions.length > 0 && (
+      {!blocks.length && !voiceActive && suggestions.length > 0 && (
         <div className="rv-suggestions">
           {suggestions.map((s) => (
             <button key={s} type="button" className="rv-chip" onClick={() => void send(s)}>
@@ -265,9 +352,30 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
         </div>
       )}
 
-      <Composer disabled={streaming} onSend={(t) => void send(t)} locale={locale} />
+      <div className="rv-composer-row">
+        <Composer disabled={streaming || voiceActive} onSend={(t) => void send(t)} locale={locale} />
+        {voiceEnabled && (
+          <button
+            type="button"
+            className={`rv-mic ${voiceActive ? "rv-mic-on" : ""}`}
+            aria-label={voiceActive ? "Sesli görüşmeyi kapat" : "Sesli danışmanı aç"}
+            aria-pressed={voiceActive}
+            onClick={toggleVoice}
+          >
+            <span className={`rv-mic-dot rv-mic-${voice.status}`} />
+            {voiceStatusLabel(voice.status, locale)}
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+function voiceStatusLabel(status: string, locale: Locale): string {
+  if (status === "idle" || status === "error") return locale === "tr" ? "Sesli" : "Voice";
+  if (status === "connecting") return locale === "tr" ? "Bağlanıyor…" : "Connecting…";
+  if (status === "speaking") return locale === "tr" ? "Konuşuyor…" : "Speaking…";
+  return locale === "tr" ? "Dinliyor…" : "Listening…";
 }
 
 function errorText(status: number, locale: Locale): string {

@@ -193,13 +193,21 @@
 }
 .rv-chip:hover { border-color: var(--rv-accent); }
 
-.rv-composer {
+.rv-composer-row {
   display: flex;
   gap: 8px;
   align-items: flex-end;
   padding: 12px 16px 16px;
   border-top: 1px solid var(--rv-line);
   flex: 0 0 auto;
+}
+
+.rv-composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rv-composer textarea {
@@ -231,3 +239,37 @@
   font-size: 17px;
 }
 .rv-send:disabled { background: var(--rv-assistant-bg); color: var(--rv-muted); cursor: default; }
+
+/* ── voice ──────────────────────────────────────────────────────────────── */
+
+.rv-mic {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--rv-line);
+  border-radius: 19px;
+  background: var(--rv-surface);
+  color: var(--rv-ink);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rv-mic-on {
+  border-color: var(--rv-accent);
+  background: color-mix(in srgb, var(--rv-accent) 12%, var(--rv-surface));
+}
+
+.rv-mic-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rv-muted);
+  flex: 0 0 auto;
+}
+.rv-mic-connecting { background: #d4a94a; animation: rv-blink 1s infinite ease-in-out; }
+.rv-mic-listening { background: #3fb37f; }
+.rv-mic-speaking { background: var(--rv-accent); animation: rv-blink 0.8s infinite ease-in-out; }
+.rv-mic-error { background: #c0392b; }

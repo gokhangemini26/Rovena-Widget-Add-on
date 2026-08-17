@@ -105,7 +105,11 @@ Working and verified end to end: loader and iframe boundary, per-tenant theming,
 streaming chat with the tool loop, catalog grounding, outfit building, product
 cards, size-gated add-to-cart across all three bridge modes, the stock contract,
 the department lock, origin allowlisting, rate limits, feed normalisation with a
-brand-facing report, per-tenant metering, and the billing/funnel views.
+brand-facing report, per-tenant metering, the billing/funnel views, and
+real-time voice (ephemeral-token Live connection, catalog-grounded tool calls,
+the same stock contract, transcript rendering, leak filtering — see
+`docs/ARCHITECTURE.md`'s Voice section for what that verification actually
+found). Voice is off by default per tenant (`tenant.voice.enabled`).
 
 Not built yet, in rough order of commercial value:
 
@@ -113,8 +117,9 @@ Not built yet, in rough order of commercial value:
    source product and need porting plus per-brand reference photography.
 2. **Brand console.** The funnel and product-performance views exist in SQL with
    no UI in front of them; brands see the numbers today only if we send them.
-3. **Voice.** Same shape as the source product's Live integration, gated behind
-   sign-in there and needing a per-tenant equivalent here.
+3. **Voice barge-in.** The customer cannot interrupt the stylist mid-sentence —
+   a deliberate simplification (see Voice in `docs/ARCHITECTURE.md`) that
+   trades the source product's Silero VAD layer for not shipping an ML model.
 4. **Explicit context caching.** Implicit prefix caching applies today; the
    source product's explicit cache handling is a further cost reduction.
 5. **Distributed rate limiting.** Counters are per-instance; the monthly cap in
