@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400" role="img" aria-label="Kahve Ayakkabı">
+  <rect width="300" height="400" fill="#efece7"/>
+  <rect x="70" y="60" width="160" height="250" rx="10" fill="#5a3a26"/>
+  <rect x="70" y="60" width="160" height="250" rx="10" fill="none" stroke="rgba(0,0,0,.12)"/>
+  <text x="150" y="348" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#5d554b">Kahve Ayakkabı</text>
+  <text x="150" y="370" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" letter-spacing="1.5" fill="#9a9086">ORNEK GORSEL</text>
+</svg>

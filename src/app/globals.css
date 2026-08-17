@@ -1,0 +1,33 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #ffffff;
+  color: #16130f;
+}
+
+/* The widget paints its own surface from tenant tokens; the shell must not
+   assume a colour scheme, because it renders inside someone else's page. */
+.rovena-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--rv-surface);
+  color: var(--rv-ink);
+  font-family: var(--rv-font-body);
+}
+
+button { font: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

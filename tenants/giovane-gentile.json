@@ -1,0 +1,103 @@
+{
+  "slug": "giovane-gentile",
+  "name": "Giovane Gentile",
+  "status": "trial",
+  "allowedOrigins": [
+    "https://www.giovanegentile.com",
+    "https://giovanegentile.com"
+  ],
+  "theme": {
+    "accent": "#78201E",
+    "accentInk": "#FFFFFF",
+    "surface": "#FFFFFF",
+    "ink": "#16130F",
+    "muted": "#8A7F72",
+    "line": "#E4DED4",
+    "fontDisplay": "'Poppins', system-ui, sans-serif",
+    "fontBody": "'Poppins', system-ui, sans-serif",
+    "fontUrl": "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap",
+    "radius": 12,
+    "position": "bottom-right"
+  },
+  "persona": {
+    "displayName": "Stil Danışmanı",
+    "brief": "Giovane Gentile, 1984'te kurulan Ercem Tekstil'in hazır giyim markasıdır. Erkek giyimde 'ulaşılabilir lüks' anlayışıyla çalışır; iyi kumaş ve doğru kalıbı gösterişten önce koyar. Müşterisi çoğunlukla iş hayatının içinde, kendine bakan, abartıya mesafeli bir erkektir: bir toplantıya, bir davete, bir nikâha ya da bir hafta sonu buluşmasına ne giyeceğini sorar. Markanın sözü 'centilmenin sözünün değeri'dir — ona uygun konuş: ölçülü, net, samimi ama laubali değil. Süslü sıfat yığma, abartılı iltifat etme, satış baskısı kurma. Müşteri kararsızsa iki seçenek sun ve neden birini önerdiğini bir cümleyle açıkla.",
+    "stylingRules": [
+      "Bu bir erkek giyim markasıdır. Kadın ürünü önerme, kadın kombini kurma.",
+      "Takım elbise ile spor ayakkabı önerme; bu markanın çizgisi değil.",
+      "Siyah takım elbise ile kahverengi ayakkabı eşleştirme. Siyah takıma siyah ayakkabı, lacivert takıma kahverengi veya siyah ayakkabı önerilir.",
+      "Bir kombinde en fazla bir desenli parça olsun; ikinci deseni ancak müşteri isterse ekle.",
+      "Kravat ve mendil aynı desende olmasın; renk ailesi ortak olsun yeter.",
+      "Resmiyet düzeyini müşteri söylemeden varsayma. 'Nereye giyeceksiniz' sorusu her zaman ilk sorudur.",
+      "Beden konusunda garanti verme. Kalıbın dar mı normal mi olduğunu söyle, 'tam oturur' deme."
+    ],
+    "greeting": {
+      "tr": "Hoş geldiniz. Nereye giyineceğinizi söyleyin, gerisini birlikte kuralım.",
+      "en": "Welcome. Tell me what you're dressing for and we'll build it together."
+    },
+    "suggestions": {
+      "tr": [
+        "Akşam bir davete gidiyorum",
+        "İş toplantısı için bir şey lazım",
+        "Bu ceketi neyle kombinlerim?",
+        "Hafta sonu için rahat ama şık"
+      ],
+      "en": [
+        "I have an evening event",
+        "Something for a business meeting",
+        "What goes with this jacket?",
+        "Smart casual for the weekend"
+      ]
+    },
+    "defaultLocale": "tr",
+    "locales": ["tr", "en"]
+  },
+  "feed": {
+    "url": null,
+    "format": "xml",
+    "itemPath": "Products.Product",
+    "refreshHours": 4,
+    "map": {
+      "sku": "StokKodu",
+      "name": "UrunAdi",
+      "department": "Cinsiyet",
+      "category": "Kategori",
+      "color": "Renk",
+      "composition": "Kumas",
+      "price": "SatisFiyat",
+      "currency": "ParaBirimi",
+      "sizes": "Bedenler",
+      "stock": "Stok",
+      "imageMain": "Resim",
+      "imageDetail": "Resim2",
+      "productUrl": "Link",
+      "description": "Aciklama",
+      "season": "Sezon",
+      "sizeSystem": "BedenTipi",
+      "relatedSkus": "Kombin"
+    },
+    "defaults": {
+      "department": "men",
+      "currency": "TRY"
+    },
+    "valueMap": {
+      "department": {
+        "E": "men",
+        "Erkek": "men",
+        "ERKEK": "men"
+      }
+    }
+  },
+  "inventory": {
+    "mode": "assumed",
+    "lowStockThreshold": 3
+  },
+  "cart": {
+    "mode": "redirect"
+  },
+  "limits": {
+    "messagesPerSession": 40,
+    "requestsPerMinute": 20,
+    "conversationsPerMonth": 1500
+  }
+}

@@ -1,0 +1,233 @@
+/* Widget skin. Every colour, radius and face is a --rv-* token written by the
+   embed page from the tenant config, so this file is brand-agnostic: adding a
+   brand is a JSON change, never a CSS change. That is the difference between a
+   widget and a bespoke build. */
+
+.rv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--rv-line);
+  flex: 0 0 auto;
+}
+
+.rv-title {
+  font-family: var(--rv-font-display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rv-close {
+  border: 0;
+  background: transparent;
+  color: var(--rv-muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 6px;
+  border-radius: 6px;
+}
+.rv-close:hover { color: var(--rv-ink); }
+
+.rv-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rv-bubble {
+  max-width: 86%;
+  padding: 11px 14px;
+  border-radius: calc(var(--rv-radius) * 1px);
+  font-size: 14.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rv-assistant {
+  align-self: flex-start;
+  background: var(--rv-assistant-bg);
+  color: var(--rv-ink);
+  border-bottom-left-radius: 4px;
+}
+
+.rv-user {
+  align-self: flex-end;
+  background: var(--rv-accent);
+  color: var(--rv-accent-ink);
+  border-bottom-right-radius: 4px;
+}
+
+.rv-typing { display: flex; gap: 4px; align-items: center; padding: 14px; }
+.rv-typing span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--rv-muted);
+  animation: rv-blink 1.2s infinite ease-in-out;
+}
+.rv-typing span:nth-child(2) { animation-delay: 0.18s; }
+.rv-typing span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes rv-blink { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
+
+.rv-error {
+  align-self: stretch;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--rv-assistant-bg);
+  color: var(--rv-muted);
+  border: 1px solid var(--rv-line);
+}
+
+/* ── products ───────────────────────────────────────────────────────────── */
+
+.rv-products { align-self: stretch; }
+
+.rv-products-title {
+  font-family: var(--rv-font-display);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rv-muted);
+  margin: 6px 0 8px;
+}
+
+.rv-products-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  /* An outfit scrolls sideways inside its own container; the widget body must
+     never scroll horizontally. */
+}
+.rv-products-row > * { scroll-snap-align: start; }
+
+.rv-card {
+  flex: 0 0 158px;
+  border: 1px solid var(--rv-line);
+  border-radius: calc(var(--rv-radius) * 1px);
+  overflow: hidden;
+  background: var(--rv-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.rv-card-image {
+  border: 0;
+  padding: 0;
+  background: var(--rv-assistant-bg);
+  cursor: pointer;
+  aspect-ratio: 3 / 4;
+  display: block;
+}
+.rv-card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.rv-card-body { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+
+.rv-card-name {
+  font-size: 12.5px;
+  line-height: 1.35;
+  /* Two lines then ellipsis: a card grid with ragged heights reads as broken. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rv-card-price { font-size: 13px; font-weight: 600; }
+
+.rv-sizes { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.rv-size {
+  border: 1px solid var(--rv-line);
+  background: transparent;
+  color: var(--rv-ink);
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 11px;
+  cursor: pointer;
+  min-width: 28px;
+}
+.rv-size-on {
+  background: var(--rv-accent);
+  color: var(--rv-accent-ink);
+  border-color: var(--rv-accent);
+}
+
+.rv-add {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--rv-accent);
+  color: var(--rv-accent-ink);
+}
+.rv-add:disabled { background: var(--rv-assistant-bg); color: var(--rv-muted); cursor: default; }
+
+/* ── suggestions + composer ─────────────────────────────────────────────── */
+
+.rv-suggestions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 0 16px 10px;
+  flex: 0 0 auto;
+}
+
+.rv-chip {
+  border: 1px solid var(--rv-line);
+  background: transparent;
+  color: var(--rv-ink);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.rv-chip:hover { border-color: var(--rv-accent); }
+
+.rv-composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--rv-line);
+  flex: 0 0 auto;
+}
+
+.rv-composer textarea {
+  flex: 1 1 auto;
+  resize: none;
+  border: 1px solid var(--rv-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  /* 16px minimum: anything smaller makes iOS Safari zoom the whole page on
+     focus, which on a phone reads as the widget breaking. */
+  font-size: 16px;
+  line-height: 1.4;
+  font-family: inherit;
+  color: var(--rv-ink);
+  background: var(--rv-surface);
+  max-height: 120px;
+}
+.rv-composer textarea:focus { outline: 2px solid var(--rv-accent); outline-offset: -1px; }
+
+.rv-send {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background: var(--rv-accent);
+  color: var(--rv-accent-ink);
+  font-size: 17px;
+}
+.rv-send:disabled { background: var(--rv-assistant-bg); color: var(--rv-muted); cursor: default; }
