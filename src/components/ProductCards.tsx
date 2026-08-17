@@ -21,15 +21,42 @@ export function ProductCards({
   products,
   onSelect,
   onAddToCart,
+  onTryOn,
 }: {
   title?: string;
   products: ProductCard[];
   onSelect: (p: ProductCard) => void;
   onAddToCart: (p: ProductCard, size: string) => void;
+  onTryOn?: (products: ProductCard[]) => void;
 }) {
   return (
     <div className="rv-products">
-      {title && <div className="rv-products-title">{title}</div>}
+      <div className="rv-products-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        {title && <div className="rv-products-title">{title}</div>}
+        {onTryOn && products.length > 0 && (
+          <button
+            type="button"
+            className="rv-tryon-trigger"
+            onClick={() => onTryOn(products)}
+            style={{
+              background: "var(--rv-accent)",
+              color: "var(--rv-accent-ink)",
+              border: 0,
+              borderRadius: 99,
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span>✨</span>
+            <span>Mankende Gör</span>
+          </button>
+        )}
+      </div>
       <div className="rv-products-row">
         {products.map((p, i) => (
           <Card

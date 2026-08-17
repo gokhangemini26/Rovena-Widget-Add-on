@@ -13,6 +13,7 @@ declare global {
       setProduct: (sku: string) => void;
       setCart: (skus: string[]) => void;
       ask: (text: string) => void;
+      openWithProduct: (sku: string) => void;
       isReady: () => boolean;
     };
   }

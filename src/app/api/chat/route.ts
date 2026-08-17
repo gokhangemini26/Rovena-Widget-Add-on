@@ -8,6 +8,7 @@ import { TOOL_DECLARATIONS, READ_TOOLS, executeReadTool } from "@/lib/ai/tools";
 import { logUsage } from "@/lib/metering/usage";
 import { corsHeaders, isAllowedOrigin, requestOrigin } from "@/lib/security/origin";
 import { checkRate, clientIp } from "@/lib/security/ratelimit";
+import { getStyleDna } from "@/lib/memory/store";
 import type { Locale } from "@/lib/tenant/types";
 
 export const runtime = "nodejs";
@@ -113,6 +114,11 @@ export async function POST(req: Request) {
   const products = await catalog.getAll();
   if (!products.length) return errorResponse(503, "catalog_empty", origin);
 
+  // Style DNA Memory (KVKK-consented long-term preferences)
+  const userEmail = typeof body.userEmail === "string" ? body.userEmail : undefined;
+  const consentGiven = Boolean(body.consentGiven);
+  const styleDna = userEmail && consentGiven ? await getStyleDna(tenant.slug, userEmail) : null;
+
   // The static half takes no per-request argument, so it is byte-identical for
   // every visitor of this tenant and stays eligible for prefix caching. Every
   // volatile fact goes in the turn context below instead — mixing them is what
@@ -123,6 +129,7 @@ export async function POST(req: Request) {
     currentSku: typeof body.currentSku === "string" ? body.currentSku : undefined,
     cartSkus: Array.isArray(body.cartSkus) ? (body.cartSkus as string[]).slice(0, 20) : undefined,
     shownSkus: Array.isArray(body.shownSkus) ? (body.shownSkus as string[]).slice(0, 20) : undefined,
+    styleDna,
   });
 
   const contents: Content[] = messages.map((m, i) => ({

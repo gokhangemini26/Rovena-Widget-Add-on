@@ -217,35 +217,31 @@
       track(ok ? "add_to_cart" : "cart_bridge_failed", payload);
     };
 
-    if (cart.mode === "callback" && cart.callbackName) {
-      var fn = resolveGlobal(cart.callbackName);
-      if (typeof fn !== "function") {
-        console.error("[Rovena] Sepet fonksiyonu bulunamadı:", cart.callbackName);
-        done(false, "callback_missing");
-        openProduct(payload.url);
-        return;
-      }
+    // Dispatch host custom event so the host page can react immediately
+    try {
+      window.dispatchEvent(new CustomEvent("rovena:add-to-cart", { detail: payload }));
+    } catch (e) {}
+
+    // Check direct callback or global handler
+    var hostFn = (cart.mode === "callback" && cart.callbackName) ? resolveGlobal(cart.callbackName) : window.rovenaAddToCart;
+    if (typeof hostFn === "function") {
       try {
-        var result = fn({ sku: payload.sku, size: payload.size, quantity: payload.quantity || 1 });
+        var result = hostFn({ sku: payload.sku, size: payload.size, quantity: payload.quantity || 1, url: payload.url });
         Promise.resolve(result).then(
           function () { done(true); },
           function (err) {
             console.error("[Rovena] Sepete ekleme başarısız:", err);
             done(false, "callback_rejected");
-            openProduct(payload.url);
           }
         );
       } catch (err) {
         console.error("[Rovena] Sepete ekleme hatası:", err);
         done(false, "callback_threw");
-        openProduct(payload.url);
       }
       return;
     }
 
     if (cart.mode === "api" && payload.url) {
-      // The API mode posts from the widget side (it holds the credential);
-      // here the host only needs to reflect the result to the customer.
       done(true, "api");
       return;
     }
@@ -255,6 +251,9 @@
   }
 
   function handleNavigate(payload) {
+    try {
+      window.dispatchEvent(new CustomEvent("rovena:navigate", { detail: payload }));
+    } catch (e) {}
     openProduct(payload.url);
     track("product_clicked", payload);
   }
@@ -334,6 +333,11 @@
     ask: function (text) {
       toggle(true);
       post({ type: "ask", payload: { text: String(text || "").slice(0, 500) } });
+    },
+    openWithProduct: function (sku) {
+      toggle(true);
+      this.setProduct(sku);
+      this.ask("Bu parçayı (" + sku + ") neyle kombinlerim?");
     },
     isReady: function () { return state.ready; },
   };

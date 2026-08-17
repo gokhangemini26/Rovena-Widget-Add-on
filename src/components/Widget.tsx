@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale, PublicTenantConfig } from "@/lib/tenant/types";
+import type { UserStyleDna } from "@/lib/memory/types";
 import { ProductCards, type ProductCard } from "./ProductCards";
 import { Composer } from "./Composer";
+import { StyleMemoryBar } from "./StyleMemoryBar";
+import { KvkkModal } from "./KvkkModal";
+import { TryOnModal } from "./TryOnModal";
+import { GeminiLiveSession, type FunctionCall } from "@/lib/live/gemini-live";
 
 /* ══════════════════════════════════════════════════════════════════════════
    The widget itself. Runs inside the iframe on the brand's page.
@@ -28,6 +33,20 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
   const [fatal, setFatal] = useState<string | null>(null);
   const [context, setContext] = useState<HostContext>({ sku: null, cart: [] });
 
+  // Virtual Try-On State
+  const [tryOnProducts, setTryOnProducts] = useState<ProductCard[] | null>(null);
+
+  // Gemini Live Multimodal Voice State
+  const [isLiveActive, setIsLiveActive] = useState<boolean>(false);
+  const [isLiveConnecting, setIsLiveConnecting] = useState<boolean>(false);
+  const liveSessionRef = useRef<GeminiLiveSession | null>(null);
+
+  // KVKK & Style Memory State
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [consentGiven, setConsentGiven] = useState<boolean>(false);
+  const [styleDna, setStyleDna] = useState<UserStyleDna | null>(null);
+  const [isKvkkModalOpen, setIsKvkkModalOpen] = useState<boolean>(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // Session id identifies a conversation for metering and rate limiting. It is
@@ -37,8 +56,44 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
     [],
   );
 
-  const greeting = config.persona.greeting[locale] ?? "Merhaba. Size nasıl yardımcı olabilirim?";
-  const suggestions = config.persona.suggestions[locale] ?? [];
+  // Load saved KVKK memory preferences from localStorage
+  useEffect(() => {
+    try {
+      const storedEmail = localStorage.getItem(`rovena_email_${config.slug}`) || "";
+      const storedConsent = localStorage.getItem(`rovena_consent_${config.slug}`) === "true";
+      if (storedEmail && storedConsent) {
+        setUserEmail(storedEmail);
+        setConsentGiven(true);
+        // Fetch style DNA from API
+        fetch(`/api/memory?tenant=${encodeURIComponent(config.slug)}&email=${encodeURIComponent(storedEmail)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.active && data.styleDna) {
+              setStyleDna(data.styleDna);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // LocalStorage not available or restricted in iframe sandbox
+    }
+  }, [config.slug]);
+
+  const defaultGreeting = config.persona.greeting[locale] ?? "Merhaba. Size nasıl yardımcı olabilirim?";
+  const greeting = useMemo(() => {
+    if (consentGiven && styleDna) {
+      if (styleDna.purchasedItems?.length) {
+        const lastItem = styleDna.purchasedItems[styleDna.purchasedItems.length - 1];
+        return locale === "tr"
+          ? `Tekrar hoş geldiniz! Gardırobunuzdaki ${lastItem.name} ve stil tercihlerinize uygun yeni sezon kombinleri hazırlamaya hazırım. Bugün nasıl bir kombin arıyorsunuz?`
+          : `Welcome back! Ready to curate outfits matching your ${lastItem.name} and saved style preferences. What are you looking for today?`;
+      }
+      return locale === "tr"
+        ? "Tekrar hoş geldiniz! Kayıtlı beden ölçülerinize ve stil tercihlerinize göre size özel kombinler hazırlayabilirim."
+        : "Welcome back! Ready with your personal style preferences and sizes.";
+    }
+    return defaultGreeting;
+  }, [consentGiven, defaultGreeting, locale, styleDna]);
 
   /* ── host bridge ──────────────────────────────────────────────────────── */
 
@@ -49,6 +104,133 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
     },
     [hostOrigin],
   );
+
+  const stopLiveVoice = useCallback(() => {
+    if (liveSessionRef.current) {
+      liveSessionRef.current.stop();
+      liveSessionRef.current = null;
+    }
+    setIsLiveActive(false);
+    setIsLiveConnecting(false);
+  }, []);
+
+  const startLiveVoice = useCallback(async () => {
+    if (isLiveActive) {
+      stopLiveVoice();
+      return;
+    }
+
+    try {
+      setIsLiveConnecting(true);
+      const res = await fetch("/api/live-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenant: config.slug }),
+      });
+      const data = await res.json();
+      if (!res.ok && !data.fallback) {
+        throw new Error(data.error || "Token mint failed");
+      }
+
+      const session = new GeminiLiveSession({
+        model: data.model || "gemini-3.1-flash-live-preview",
+        apiKey: data.apiKey,
+        token: data.token,
+        systemInstruction: data.systemInstruction,
+        onOpen: () => {
+          setIsLiveConnecting(false);
+          setIsLiveActive(true);
+        },
+        onClose: () => {
+          stopLiveVoice();
+        },
+        onError: (err) => {
+          console.error("[Live Voice Error]", err);
+          stopLiveVoice();
+        },
+        onTranscription: (text, isUser) => {
+          if (!text.trim()) return;
+          setBlocks((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.kind === "text" && last.role === (isUser ? "user" : "assistant")) {
+              return [...prev.slice(0, -1), { kind: "text", role: isUser ? "user" : "assistant", text: last.text + text }];
+            }
+            return [...prev, { kind: "text", role: isUser ? "user" : "assistant", text }];
+          });
+        },
+        onToolCall: async (calls) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const responses: any[] = [];
+          for (const call of calls) {
+            if (call.name === "showProducts") {
+              const skus = Array.isArray(call.args.skus) ? (call.args.skus as string[]) : [];
+              if (skus.length) {
+                postToHost("event", { event: "products_shown" });
+                try {
+                  const res = await fetch(`/api/products?tenant=${config.slug}&skus=${skus.join(",")}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data.products) && data.products.length > 0) {
+                      setBlocks((prev) => [
+                        ...prev,
+                        { kind: "products", title: (call.args.title as string) || "Önerilen Parçalar", products: data.products },
+                      ]);
+                    }
+                  }
+                } catch {}
+              }
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { output: { ok: true, count: skus.length } },
+              });
+            } else if (call.name === "addToCart") {
+              postToHost("add-to-cart", call.args);
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { output: { ok: true, added: true } },
+              });
+            } else if (call.name === "show_on_model") {
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { output: { ok: true, dressing: true } },
+              });
+            } else {
+              responses.push({
+                id: call.id,
+                name: call.name,
+                response: { output: { ok: true } },
+              });
+            }
+          }
+          session.sendToolResponse(responses);
+        },
+      });
+
+      liveSessionRef.current = session;
+      await session.start();
+    } catch (e) {
+      console.error("[Start Live Voice Error]", e);
+      setIsLiveConnecting(false);
+      setIsLiveActive(false);
+    }
+  }, [config.slug, isLiveActive, postToHost, stopLiveVoice]);
+
+  useEffect(() => {
+    return () => {
+      if (liveSessionRef.current) {
+        liveSessionRef.current.stop();
+        liveSessionRef.current = null;
+      }
+    };
+  }, []);
+
+  const suggestions = useMemo(() => {
+    const list = config.persona.suggestions[locale] ?? [];
+    return ["✨ Kombin Öner & Mankende Giydir", ...list];
+  }, [config.persona.suggestions, locale]);
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
@@ -117,6 +299,8 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
             currentSku: context.sku ?? undefined,
             cartSkus: context.cart,
             shownSkus,
+            userEmail: consentGiven ? userEmail : undefined,
+            consentGiven,
           }),
         });
 
@@ -193,7 +377,7 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
         setStreaming(false);
       }
     },
-    [blocks, config.slug, context, locale, postToHost, sessionId, streaming],
+    [blocks, config.slug, consentGiven, context, locale, postToHost, sessionId, streaming, userEmail],
   );
 
   const onProductClick = useCallback(
@@ -209,19 +393,81 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
     [postToHost],
   );
 
+  const handleConsentChange = (email: string, consent: boolean, dna?: UserStyleDna | null) => {
+    setUserEmail(email);
+    setConsentGiven(consent);
+    setStyleDna(dna ?? null);
+
+    try {
+      if (consent) {
+        localStorage.setItem(`rovena_email_${config.slug}`, email);
+        localStorage.setItem(`rovena_consent_${config.slug}`, "true");
+      } else {
+        localStorage.removeItem(`rovena_email_${config.slug}`);
+        localStorage.setItem(`rovena_consent_${config.slug}`, "false");
+      }
+    } catch {}
+  };
+
+  const handleClearMemory = () => {
+    setUserEmail("");
+    setConsentGiven(false);
+    setStyleDna(null);
+    try {
+      localStorage.removeItem(`rovena_email_${config.slug}`);
+      localStorage.removeItem(`rovena_consent_${config.slug}`);
+    } catch {}
+  };
+
   return (
     <div className="rovena-root">
       <header className="rv-header">
-        <span className="rv-title">{config.persona.displayName}</span>
-        <button
-          type="button"
-          className="rv-close"
-          aria-label="Kapat"
-          onClick={() => postToHost("close")}
-        >
-          ✕
-        </button>
+        <div className="rv-header-branding">
+          <span className="rv-title">{config.persona.displayName}</span>
+          <span className="rv-badge-ai">AI</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            type="button"
+            className={`rv-voice-toggle ${isLiveActive ? "rv-mic-active" : ""}`}
+            onClick={startLiveVoice}
+            disabled={isLiveConnecting}
+            title={isLiveActive ? "Canlı Sesli Görüşmeyi Kapat" : "Gemini Live Sesli Asistanı Başlat"}
+            aria-label="Canlı Sesli Asistan"
+            style={{
+              background: isLiveActive ? "#ffebee" : "none",
+              border: 0,
+              cursor: "pointer",
+              fontSize: 16,
+              opacity: isLiveConnecting ? 0.5 : 1,
+              padding: "4px 6px",
+              borderRadius: "50%",
+            }}
+          >
+            {isLiveActive ? "🔴" : isLiveConnecting ? "⏳" : "🎙️"}
+          </button>
+          <button
+            type="button"
+            className="rv-close"
+            aria-label="Kapat"
+            onClick={() => postToHost("close")}
+          >
+            ✕
+          </button>
+        </div>
       </header>
+
+      {/* KVKK & Style Memory Bar */}
+      <StyleMemoryBar
+        tenantSlug={config.slug}
+        tenantName={config.name}
+        styleDna={styleDna}
+        userEmail={userEmail}
+        consentGiven={consentGiven}
+        onConsentChange={handleConsentChange}
+        onClearMemory={handleClearMemory}
+        onOpenKvkkModal={() => setIsKvkkModalOpen(true)}
+      />
 
       <div className="rv-scroll" ref={scrollRef}>
         <div className="rv-bubble rv-assistant">{greeting}</div>
@@ -241,6 +487,7 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
               products={block.products}
               onSelect={onProductClick}
               onAddToCart={onAddToCart}
+              onTryOn={(prods) => setTryOnProducts(prods)}
             />
           ),
         )}
@@ -265,7 +512,30 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
         </div>
       )}
 
-      <Composer disabled={streaming} onSend={(t) => void send(t)} locale={locale} />
+      <Composer
+        disabled={streaming}
+        onSend={(t) => void send(t)}
+        locale={locale}
+        isLiveActive={isLiveActive}
+        onVoiceToggle={startLiveVoice}
+      />
+
+      {/* Virtual Try-On Modal */}
+      {tryOnProducts && (
+        <TryOnModal
+          tenantSlug={config.slug}
+          products={tryOnProducts}
+          onClose={() => setTryOnProducts(null)}
+          onAddToCart={onAddToCart}
+        />
+      )}
+
+      {/* KVKK Aydınlatma Metni Modal */}
+      <KvkkModal
+        isOpen={isKvkkModalOpen}
+        onClose={() => setIsKvkkModalOpen(false)}
+        tenantName={config.name}
+      />
     </div>
   );
 }

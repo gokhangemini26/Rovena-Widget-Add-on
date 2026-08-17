@@ -85,6 +85,95 @@ export async function getActiveTenant(slug: string): Promise<Tenant | null> {
   return t.status === "paused" ? null : t;
 }
 
+export async function listAllTenants(): Promise<Tenant[]> {
+  const list: Tenant[] = [];
+  const seen = new Set<string>();
+
+  // Try DB first if available
+  const supabase = serviceClient();
+  if (supabase && process.env.ROVENA_LOCAL_TENANTS !== "1") {
+    const { data } = await supabase
+      .from("tenants")
+      .select("slug, name, status, allowed_origins, config")
+      .order("name", { ascending: true });
+    if (data) {
+      for (const row of data) {
+        const cfg = (row.config ?? {}) as Omit<
+          Tenant,
+          "slug" | "name" | "status" | "allowedOrigins"
+        >;
+        list.push({
+          ...cfg,
+          slug: row.slug,
+          name: row.name,
+          status: row.status,
+          allowedOrigins: row.allowed_origins ?? [],
+        } as Tenant);
+        seen.add(row.slug);
+      }
+    }
+  }
+
+  // Also read local files in tenants/ directory
+  try {
+    const dir = path.join(process.cwd(), "tenants");
+    const files = await fs.readdir(dir);
+    for (const f of files) {
+      if (f.endsWith(".json") && !f.endsWith(".products.json")) {
+        const slug = f.replace(".json", "");
+        if (!seen.has(slug)) {
+          const tenant = await readLocalTenant(slug);
+          if (tenant) {
+            list.push(tenant);
+            seen.add(slug);
+          }
+        }
+      }
+    }
+  } catch {
+    // Ignore error if directory doesn't exist
+  }
+
+  return list;
+}
+
+export async function saveTenant(tenant: Tenant): Promise<{ ok: boolean; error?: string }> {
+  if (!isValidSlug(tenant.slug)) {
+    return { ok: false, error: "Geçersiz slug formatı (sadece küçük harf, rakam ve tire)" };
+  }
+
+  // 1. Save to local JSON file
+  try {
+    const dir = path.join(process.cwd(), "tenants");
+    await fs.mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${tenant.slug}.json`);
+    await fs.writeFile(file, JSON.stringify(tenant, null, 2), "utf8");
+  } catch (err) {
+    console.error("Local tenant write error:", err);
+  }
+
+  // 2. Save to Supabase if configured
+  const supabase = serviceClient();
+  if (supabase) {
+    const { slug, name, status, allowedOrigins, ...config } = tenant;
+    const { error } = await supabase.from("tenants").upsert({
+      slug,
+      name,
+      status: status || "active",
+      allowed_origins: allowedOrigins || [],
+      config,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "slug" });
+
+    if (error) {
+      console.warn("Supabase tenant upsert error (fallback to local):", error.message);
+    }
+  }
+
+  invalidateTenant(tenant.slug);
+  return { ok: true };
+}
+
 export function invalidateTenant(slug: string): void {
   cache.delete(slug);
 }
