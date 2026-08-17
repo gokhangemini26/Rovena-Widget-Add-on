@@ -200,8 +200,138 @@
     if (data.type === "close") { toggle(false); return; }
     if (data.type === "add-to-cart") { handleAddToCart(data.payload || {}); return; }
     if (data.type === "navigate") { handleNavigate(data.payload || {}); return; }
+    if (data.type === "page-action") { handlePageAction(data.payload || {}); return; }
     if (data.type === "event") { track(data.payload && data.payload.event, data.payload); return; }
   });
+
+  /* ── page control ────────────────────────────────────────────────────────
+     The stylist runs in an iframe on a different origin and cannot touch this
+     page at all. Everything it wants done to the brand's site arrives here as
+     a request, and THIS code — running on the brand's own page — carries it
+     out. That asymmetry is the security boundary, so it stays.
+
+     Targets are found by data attribute first, then by id, so a brand can
+     opt in by adding `data-rovena-section="koleksiyon"` to markup they
+     already have rather than restructuring anything.
+
+     Every outcome is tracked, including the misses: a stylist confidently
+     scrolling to a section the brand never tagged looks exactly like a broken
+     AI from the outside, and `page_action_failed` is what turns that into a
+     one-line answer. */
+
+  function findTarget(selectors) {
+    for (var i = 0; i < selectors.length; i++) {
+      try {
+        var el = document.querySelector(selectors[i]);
+        if (el) return el;
+      } catch (e) { /* malformed selector from a bad id — keep looking */ }
+    }
+    return null;
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && CSS.escape) return CSS.escape(value);
+    return String(value).replace(/["\\\]\[#.:>+~*^$|()=]/g, "\\$&");
+  }
+
+  function reveal(el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // A brief outline so the customer's eye lands where the stylist meant.
+    // Applied as a class the brand can restyle, with an inline fallback so it
+    // is visible even when they haven't.
+    el.classList.add("rovena-highlight");
+    var prevOutline = el.style.outline;
+    var prevOffset = el.style.outlineOffset;
+    el.style.outline = "2px solid " + (state.config.theme.accent || "#000");
+    el.style.outlineOffset = "3px";
+    window.setTimeout(function () {
+      el.classList.remove("rovena-highlight");
+      el.style.outline = prevOutline;
+      el.style.outlineOffset = prevOffset;
+    }, 2600);
+  }
+
+  // The model sometimes emits the same page action twice in one turn (observed:
+  // openCart called twice in a single reply). The action itself is idempotent —
+  // opening an already-open cart changes nothing — but each one is also an
+  // analytics event, and double-counting quietly inflates the funnel a brand
+  // is shown. Collapse identical actions arriving back to back.
+  var lastAction = { key: "", at: 0 };
+  var ACTION_DEDUPE_MS = 1500;
+
+  function handlePageAction(payload) {
+    var action = payload.action;
+
+    var key = action + "|" + (payload.id || payload.sku || "");
+    var now = new Date().getTime();
+    if (key === lastAction.key && now - lastAction.at < ACTION_DEDUPE_MS) return;
+    lastAction = { key: key, at: now };
+
+    if (action === "scroll-to-section") {
+      var id = String(payload.id || "");
+      var section = findTarget([
+        '[data-rovena-section="' + cssEscape(id) + '"]',
+        "#" + cssEscape(id),
+      ]);
+      if (!section) {
+        console.warn("[Rovena] Bölüm sayfada bulunamadı: " + id +
+          ' — data-rovena-section="' + id + '" ekleyin.');
+        track("page_action_failed", { action: action, id: id });
+        return;
+      }
+      reveal(section);
+      track("page_scrolled", { id: id });
+      return;
+    }
+
+    if (action === "show-product") {
+      var sku = String(payload.sku || "");
+      var card = findTarget([
+        '[data-rovena-sku="' + cssEscape(sku) + '"]',
+        "#product-" + cssEscape(sku),
+      ]);
+      if (card) {
+        reveal(card);
+        track("page_scrolled", { sku: sku });
+        return;
+      }
+      // Not on this page — the product's own page is the honest fallback.
+      if (payload.url) { openProduct(payload.url); track("product_clicked", { sku: sku }); return; }
+      track("page_action_failed", { action: action, sku: sku });
+      return;
+    }
+
+    if (action === "open-category") {
+      if (payload.url) { openProduct(payload.url); track("page_navigated", { id: payload.id }); return; }
+      track("page_action_failed", { action: action, id: payload.id });
+      return;
+    }
+
+    if (action === "open-cart" || action === "close-cart") {
+      var opening = action === "open-cart";
+      // Three ways a brand can expose its cart drawer, cheapest first: a
+      // global function, or a DOM event they listen for. We never try to
+      // click their markup — guessing at someone else's DOM is how a widget
+      // breaks a storefront.
+      var fn = resolveGlobal(opening ? "rovenaOpenCart" : "rovenaCloseCart");
+      if (typeof fn === "function") {
+        try { fn(); track(opening ? "cart_opened" : "cart_closed", {}); return; }
+        catch (e) { console.error("[Rovena] Sepet fonksiyonu hata verdi:", e); }
+      }
+      var evt;
+      try {
+        evt = new CustomEvent(opening ? "rovena:open-cart" : "rovena:close-cart");
+      } catch (e) {
+        evt = document.createEvent("CustomEvent");
+        evt.initCustomEvent(opening ? "rovena:open-cart" : "rovena:close-cart", false, false, null);
+      }
+      window.dispatchEvent(evt);
+      track(opening ? "cart_opened" : "cart_closed", {});
+      return;
+    }
+
+    track("page_action_failed", { action: String(action || "unknown") });
+  }
 
   /* ── cart bridge ─────────────────────────────────────────────────────────
      Three modes, cheapest first. The failure path matters more than the happy
@@ -334,6 +464,14 @@
     ask: function (text) {
       toggle(true);
       post({ type: "ask", payload: { text: String(text || "").slice(0, 500) } });
+    },
+    /** The product-page shortcut: open the stylist already pointed at a
+        specific piece. Sets the context BEFORE asking, so the model's first
+        turn already knows which product "bunu" refers to. */
+    openWithProduct: function (sku, text) {
+      state.context.sku = sku || null;
+      post({ type: "context", payload: state.context });
+      window.Rovena.ask(text || "Bu parçayı neyle kombinlerim?");
     },
     isReady: function () { return state.ready; },
   };

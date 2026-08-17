@@ -42,6 +42,59 @@ export function buildStaticPrompt(tenant: Tenant, products: Product[]): string {
       : `Stok yalnızca checkStock aracının döndürdüğü kadarıyla bilinir.
    Aracın verdiği ifadeyi aktar, güçlendirme.`;
 
+  // Page control and try-on are per-tenant, so their rules only appear when
+  // the brand actually switched them on — a prompt that describes a tool the
+  // schema doesn't contain just teaches the model to try calling it.
+  const pc = tenant.pageControl;
+  const lines: string[] = [];
+
+  if (pc?.enabled) {
+    const parts: string[] = [];
+    if (pc.sections?.length) {
+      parts.push(
+        `· scrollToSection — müşteriyi sayfanın bir bölümüne kaydırır. ` +
+          `Bölümler: ${pc.sections.map((s) => `${s.id} (${s.label})`).join(", ")}.`,
+      );
+    }
+    if (pc.categories?.length) {
+      parts.push(
+        `· openCategory — kategori sayfasına götürür. ` +
+          `Kategoriler: ${pc.categories.map((c) => `${c.id} (${c.label})`).join(", ")}. ` +
+          `Sayfa değişir, sohbet kapanabilir — yalnızca müşteri açıkça isterse.`,
+      );
+    }
+    parts.push(`· showProduct — sayfada o ürüne kaydırıp vurgular.`);
+    if (pc.cart) {
+      parts.push(`· openCart / closeCart — sepeti açar/kapatır.`);
+    }
+    lines.push(parts.join("\n"));
+  }
+
+  if (tenant.tryOn?.enabled) {
+    lines.push(
+      `· showOnModel — ekrandaki kombini manken üzerinde giydirir. Yalnızca müşteri\n` +
+        `  isterse veya teklifine "evet" derse. Önce showProducts ile kombini ekrana koy.`,
+    );
+  }
+
+  const toolNotes = lines.length ? `${lines.join("\n")}\n` : "";
+
+  // The honest-phrasing rule below matters as much as the tools themselves:
+  // the widget cannot verify that the brand's page actually moved (it asks the
+  // host and does not wait for proof), so the stylist must speak in the
+  // present tense — an invitation, not a completed act. Same instinct as the
+  // stock contract: never claim more than the system can back.
+  const pageDiscipline = pc?.enabled
+    ? `
+SAYFA YÖNETİMİ
+· Sayfayı sen kaydırıyorsun ama sonucu göremiyorsun. Bu yüzden "götürdüm",
+  "açtım", "gösterdim" gibi TAMAMLANMIŞ fiil kullanma; "sizi oraya alıyorum",
+  "aşağıda görebilirsiniz", "sepeti açıyorum" gibi konuş.
+· Listede olmayan bir bölüme veya kategoriye gitmeyi teklif etme.
+· Her cümlede bir yere kaydırma. Müşteri istediğinde veya bir şeyi görmesi
+  gerçekten gerektiğinde kullan.`
+    : "";
+
   return `Sen ${p.displayName} adlı dijital stil danışmanısın. ${tenant.name} markası için çalışıyorsun.
 
 MARKA BRİFİ
@@ -71,6 +124,7 @@ STOK VE BULUNURLUK
 · "Stokta var", "son bir tane kaldı", "sizin için ayırayım", "yarın elimizde olur"
   cümlelerini bir araç yanıtı bunu söylemeden ASLA kurma.
 · Müşteri bulunurluk sorarsa checkStock çağır ve dönen ifadeyi aktar.
+${pageDiscipline}
 
 ARAÇLAR
 · searchProducts — katalogda daralt. Kombin kurmadan önce çağır.
@@ -78,7 +132,7 @@ ARAÇLAR
 · checkStock — beden bulunurluğu. Bulunurluk hakkında konuşmanın TEK yolu.
 · showProducts — müşteriye ürün kartlarını göster. Bir kombin önerdiğinde çağır.
 · addToCart — müşteri açıkça istediğinde sepete ekle. Kendiliğinden çağırma.
-
+${toolNotes}
 DİL
 Müşterinin yazdığı dilde cevap ver. Desteklenen diller: ${p.locales.map((l) => LOCALE_NAME[l]).join(", ")}.
 Müşteri dil değiştirirse sen de değiştir ve o dilde devam et.

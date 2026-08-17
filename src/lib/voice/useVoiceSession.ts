@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startVoiceAudio, type VoiceAudioHandle } from "./audio";
 import { GeminiLiveClient, type FunctionCall } from "./GeminiLiveClient";
-import { READ_TOOLS, UI_TOOLS } from "@/lib/ai/toolSchema";
+import { READ_TOOLS, UI_TOOLS, PAGE_TOOLS } from "@/lib/ai/toolSchema";
+import type { FunctionDeclaration } from "@google/genai";
 import { stripVoiceLeak } from "./transcriptFilter";
 
 export type VoiceStatus = "idle" | "connecting" | "listening" | "speaking" | "error";
@@ -14,9 +15,16 @@ export interface VoiceSessionCallbacks {
   locale: string;
   currentSku?: string;
   cartSkus?: string[];
+  /** Tool surface for this tenant, built from its own configuration. */
+  toolDeclarations: FunctionDeclaration[];
   onTranscript: (role: "user" | "assistant", text: string) => void;
   onShowProducts: (skus: string[], title?: string) => void;
   onAddToCart: (args: { sku: string; size: string; quantity?: number }) => void;
+  /** A page action the HOST must carry out (scroll, open cart, open a
+      category). The widget cannot touch the brand's DOM itself. */
+  onPageAction: (name: string, args: Record<string, unknown>) => void;
+  /** Dress whatever is currently on screen on the reference model. */
+  onShowOnModel: () => void;
   onError: (message: string) => void;
 }
 
@@ -129,6 +137,7 @@ export function useVoiceSession(cb: VoiceSessionCallbacks) {
 
     const client = new GeminiLiveClient(tokenData.token, {
       model: tokenData.model,
+      toolDeclarations: cbRef.current.toolDeclarations,
       onOpen: () => {
         setStatus("listening");
         client.triggerGreeting();
@@ -177,7 +186,15 @@ export function useVoiceSession(cb: VoiceSessionCallbacks) {
                 size: String(call.args.size ?? ""),
                 quantity: typeof call.args.quantity === "number" ? call.args.quantity : undefined,
               });
+            } else if (call.name === "showOnModel") {
+              cbRef.current.onShowOnModel();
+            } else if (PAGE_TOOLS.has(call.name)) {
+              cbRef.current.onPageAction(call.name, call.args);
             }
+            // Deliberately a bare ok, with no prose the model could read back
+            // out loud: it narrates tool acknowledgments when given the
+            // chance (see transcriptFilter.ts), and a page action's real
+            // outcome happens on a page we cannot observe anyway.
             responses.push({ id: call.id, name: call.name, response: { ok: true } });
             continue;
           }

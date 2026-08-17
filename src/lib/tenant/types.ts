@@ -110,6 +110,37 @@ export interface TenantCart {
   apiUrl?: string;
 }
 
+/** What the stylist is allowed to do to the brand's PAGE.
+
+    The source product drives its own page directly. This widget lives in an
+    iframe on someone else's site and cannot touch their DOM at all — every
+    page action is a request the loader carries out on the host side. That is
+    the whole reason the security boundary is worth anything, so it is not a
+    limitation to work around.
+
+    Everything the model may target is enumerated here and injected into the
+    tool schema as an enum. A brand that lists no sections gets a stylist that
+    cannot invent one, which is the same discipline as the sku contract. */
+export interface TenantPageControl {
+  enabled: boolean;
+  /** Scrollable anchors on the brand's page. `id` must match a
+      `data-rovena-section="<id>"` attribute (or an element id) on their site. */
+  sections: { id: string; label: string }[];
+  /** Category/landing pages the stylist may send the customer to. */
+  categories: { id: string; label: string; url: string }[];
+  /** True when the host exposes a cart drawer the stylist may open/close. */
+  cart: boolean;
+}
+
+/** Virtual try-on: dress the outfit currently on screen on a model. */
+export interface TenantTryOn {
+  enabled: boolean;
+  /** Reference model photo per department, absolute URL or a path under
+      /public. Without one the render is a generic person in the brand's
+      styling rather than a consistent house model. */
+  models?: { women?: string; men?: string };
+}
+
 export interface Tenant {
   slug: string;
   name: string;
@@ -124,6 +155,8 @@ export interface Tenant {
   inventory: TenantInventory;
   cart: TenantCart;
   voice: TenantVoice;
+  pageControl: TenantPageControl;
+  tryOn: TenantTryOn;
   limits: {
     /** Messages per visitor session before the widget asks them to start over.
         Abuse ceiling, not a product decision — see docs/ARCHITECTURE.md. */
@@ -147,6 +180,12 @@ export interface PublicTenantConfig {
   >;
   cart: { mode: TenantCart["mode"]; callbackName?: string };
   voice: { enabled: boolean };
+  /** The widget needs these client-side to know which buttons to render and
+      which host actions to attempt; the section/category ids are already
+      visible in the brand's own markup, so nothing is disclosed by sending
+      them. */
+  pageControl: TenantPageControl;
+  tryOn: { enabled: boolean };
 }
 
 export function toPublicConfig(t: Tenant): PublicTenantConfig {
@@ -163,5 +202,7 @@ export function toPublicConfig(t: Tenant): PublicTenantConfig {
     },
     cart: { mode: t.cart.mode, callbackName: t.cart.callbackName },
     voice: { enabled: t.voice?.enabled ?? false },
+    pageControl: t.pageControl ?? { enabled: false, sections: [], categories: [], cart: false },
+    tryOn: { enabled: t.tryOn?.enabled ?? false },
   };
 }

@@ -21,6 +21,9 @@ body {
   background: var(--rv-surface);
   color: var(--rv-ink);
   font-family: var(--rv-font-body);
+  /* Containing block for the mannequin overlay, which must stay inside the
+     widget's own frame and never cover the brand's storefront. */
+  position: relative;
 }
 
 button { font: inherit; }

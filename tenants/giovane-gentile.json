@@ -50,7 +50,10 @@
       ]
     },
     "defaultLocale": "tr",
-    "locales": ["tr", "en"]
+    "locales": [
+      "tr",
+      "en"
+    ]
   },
   "feed": {
     "url": null,
@@ -93,7 +96,8 @@
     "lowStockThreshold": 3
   },
   "cart": {
-    "mode": "redirect"
+    "mode": "callback",
+    "callbackName": "rovenaAddToCart"
   },
   "voice": {
     "enabled": true
@@ -102,5 +106,52 @@
     "messagesPerSession": 40,
     "requestsPerMinute": 20,
     "conversationsPerMonth": 1500
+  },
+  "pageControl": {
+    "enabled": true,
+    "sections": [
+      {
+        "id": "koleksiyon",
+        "label": "Koleksiyon"
+      },
+      {
+        "id": "hikaye",
+        "label": "Marka Hikayesi"
+      },
+      {
+        "id": "magazalar",
+        "label": "Mağazalar"
+      }
+    ],
+    "categories": [
+      {
+        "id": "takim",
+        "label": "Takım Elbise",
+        "url": "https://www.giovanegentile.com/takim-elbise"
+      },
+      {
+        "id": "ceket",
+        "label": "Ceket",
+        "url": "https://www.giovanegentile.com/ceket"
+      },
+      {
+        "id": "gomlek",
+        "label": "Gömlek",
+        "url": "https://www.giovanegentile.com/gomlek"
+      },
+      {
+        "id": "ayakkabi",
+        "label": "Ayakkabı",
+        "url": "https://www.giovanegentile.com/ayakkabi"
+      }
+    ],
+    "cart": true
+  },
+  "tryOn": {
+    "enabled": true,
+    "models": {
+      "men": "/images/models/vton-model-men.png",
+      "women": "/images/models/vton-model-women.png"
+    }
   }
 }

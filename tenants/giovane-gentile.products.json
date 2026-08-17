@@ -8,22 +8,51 @@
     "color": "Lacivert",
     "colorFamily": "navy",
     "composition": "%98 Yün %2 Elastan",
-    "fabrics": [{ "name": "yün", "percentage": 98 }, { "name": "elastan", "percentage": 2 }],
-    "seasons": ["autumn", "winter", "spring"],
+    "fabrics": [
+      {
+        "name": "yün",
+        "percentage": 98
+      },
+      {
+        "name": "elastan",
+        "percentage": 2
+      }
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
     "priceMinor": 2450000,
     "currency": "TRY",
     "priceDisplay": "24.500 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "48", "stock": null },
-      { "size": "50", "stock": null },
-      { "size": "52", "stock": null },
-      { "size": "54", "stock": null }
+      {
+        "size": "48",
+        "stock": null
+      },
+      {
+        "size": "50",
+        "stock": null
+      },
+      {
+        "size": "52",
+        "stock": null
+      },
+      {
+        "size": "54",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/suit-navy.svg",
+    "imageMain": "/demo/suit-navy.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-tk-1001",
     "description": "Süper 120s yün kumaştan, hafif yapılı omuz, tek yırtmaç.",
-    "relatedSkus": ["GG-GM-2003", "GG-AY-5001", "GG-KM-6001"]
+    "relatedSkus": [
+      "GG-GM-2003",
+      "GG-AY-5001",
+      "GG-KM-6001"
+    ]
   },
   {
     "sku": "GG-CK-1204",
@@ -34,21 +63,45 @@
     "color": "Antrasit",
     "colorFamily": "black",
     "composition": "%70 Yün %30 Polyester",
-    "fabrics": [{ "name": "yün", "percentage": 70 }, { "name": "polyester", "percentage": 30 }],
-    "seasons": ["autumn", "winter"],
+    "fabrics": [
+      {
+        "name": "yün",
+        "percentage": 70
+      },
+      {
+        "name": "polyester",
+        "percentage": 30
+      }
+    ],
+    "seasons": [
+      "autumn",
+      "winter"
+    ],
     "priceMinor": 1290000,
     "currency": "TRY",
     "priceDisplay": "12.900 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "48", "stock": null },
-      { "size": "50", "stock": null },
-      { "size": "52", "stock": null }
+      {
+        "size": "48",
+        "stock": null
+      },
+      {
+        "size": "50",
+        "stock": null
+      },
+      {
+        "size": "52",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/jacket-wool.svg",
+    "imageMain": "/demo/jacket-wool.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-ck-1204",
     "description": "Kruvaze kesim, dokulu yün kumaş, iç astar viskon.",
-    "relatedSkus": ["GG-PN-3102", "GG-GM-2001"]
+    "relatedSkus": [
+      "GG-PN-3102",
+      "GG-GM-2001"
+    ]
   },
   {
     "sku": "GG-GM-2001",
@@ -59,22 +112,47 @@
     "color": "Beyaz",
     "colorFamily": "white",
     "composition": "%100 Pamuk",
-    "fabrics": [{ "name": "pamuk", "percentage": 100 }],
-    "seasons": ["spring", "summer", "autumn", "winter"],
+    "fabrics": [
+      {
+        "name": "pamuk",
+        "percentage": 100
+      }
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
     "priceMinor": 385000,
     "currency": "TRY",
     "priceDisplay": "3.850 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "S", "stock": null },
-      { "size": "M", "stock": null },
-      { "size": "L", "stock": null },
-      { "size": "XL", "stock": null }
+      {
+        "size": "S",
+        "stock": null
+      },
+      {
+        "size": "M",
+        "stock": null
+      },
+      {
+        "size": "L",
+        "stock": null
+      },
+      {
+        "size": "XL",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/shirt-white.svg",
+    "imageMain": "/demo/shirt-white.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-gm-2001",
     "description": "Klasik yaka, normal kalıp, düğmeli manşet.",
-    "relatedSkus": ["GG-TK-1001", "GG-KR-7001"]
+    "relatedSkus": [
+      "GG-TK-1001",
+      "GG-KR-7001"
+    ]
   },
   {
     "sku": "GG-GM-2003",
@@ -85,21 +163,45 @@
     "color": "Açık Mavi",
     "colorFamily": "blue",
     "composition": "%97 Pamuk %3 Elastan",
-    "fabrics": [{ "name": "pamuk", "percentage": 97 }, { "name": "elastan", "percentage": 3 }],
-    "seasons": ["spring", "summer"],
+    "fabrics": [
+      {
+        "name": "pamuk",
+        "percentage": 97
+      },
+      {
+        "name": "elastan",
+        "percentage": 3
+      }
+    ],
+    "seasons": [
+      "spring",
+      "summer"
+    ],
     "priceMinor": 395000,
     "currency": "TRY",
     "priceDisplay": "3.950 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "S", "stock": null },
-      { "size": "M", "stock": null },
-      { "size": "L", "stock": null }
+      {
+        "size": "S",
+        "stock": null
+      },
+      {
+        "size": "M",
+        "stock": null
+      },
+      {
+        "size": "L",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/shirt-blue.svg",
+    "imageMain": "/demo/shirt-blue.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-gm-2003",
     "description": "İnce poplin, slim fit, italyan yaka.",
-    "relatedSkus": ["GG-TK-1001", "GG-PN-3102"]
+    "relatedSkus": [
+      "GG-TK-1001",
+      "GG-PN-3102"
+    ]
   },
   {
     "sku": "GG-PN-3102",
@@ -110,22 +212,49 @@
     "color": "Gri",
     "colorFamily": "grey",
     "composition": "%80 Yün %20 Polyester",
-    "fabrics": [{ "name": "yün", "percentage": 80 }, { "name": "polyester", "percentage": 20 }],
-    "seasons": ["autumn", "winter"],
+    "fabrics": [
+      {
+        "name": "yün",
+        "percentage": 80
+      },
+      {
+        "name": "polyester",
+        "percentage": 20
+      }
+    ],
+    "seasons": [
+      "autumn",
+      "winter"
+    ],
     "priceMinor": 545000,
     "currency": "TRY",
     "priceDisplay": "5.450 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "48", "stock": null },
-      { "size": "50", "stock": null },
-      { "size": "52", "stock": null },
-      { "size": "54", "stock": null }
+      {
+        "size": "48",
+        "stock": null
+      },
+      {
+        "size": "50",
+        "stock": null
+      },
+      {
+        "size": "52",
+        "stock": null
+      },
+      {
+        "size": "54",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/trouser-grey.svg",
+    "imageMain": "/demo/trouser-grey.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-pn-3102",
     "description": "Düz paça, pileli, yandan cepli.",
-    "relatedSkus": ["GG-CK-1204", "GG-GM-2001"]
+    "relatedSkus": [
+      "GG-CK-1204",
+      "GG-GM-2001"
+    ]
   },
   {
     "sku": "GG-TR-4201",
@@ -136,21 +265,41 @@
     "color": "Camel",
     "colorFamily": "brown",
     "composition": "%100 Merinos Yün",
-    "fabrics": [{ "name": "merinos yün", "percentage": 100 }],
-    "seasons": ["autumn", "winter"],
+    "fabrics": [
+      {
+        "name": "merinos yün",
+        "percentage": 100
+      }
+    ],
+    "seasons": [
+      "autumn",
+      "winter"
+    ],
     "priceMinor": 620000,
     "currency": "TRY",
     "priceDisplay": "6.200 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "M", "stock": null },
-      { "size": "L", "stock": null },
-      { "size": "XL", "stock": null }
+      {
+        "size": "M",
+        "stock": null
+      },
+      {
+        "size": "L",
+        "stock": null
+      },
+      {
+        "size": "XL",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/knit-camel.svg",
+    "imageMain": "/demo/knit-camel.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-tr-4201",
     "description": "İnce örgü bisiklet yaka, tek kat giyilebilir.",
-    "relatedSkus": ["GG-PN-3102", "GG-CK-1204"]
+    "relatedSkus": [
+      "GG-PN-3102",
+      "GG-CK-1204"
+    ]
   },
   {
     "sku": "GG-AY-5001",
@@ -161,22 +310,46 @@
     "color": "Kahverengi",
     "colorFamily": "brown",
     "composition": "%100 Deri",
-    "fabrics": [{ "name": "deri", "percentage": 100 }],
-    "seasons": ["autumn", "winter", "spring"],
+    "fabrics": [
+      {
+        "name": "deri",
+        "percentage": 100
+      }
+    ],
+    "seasons": [
+      "autumn",
+      "winter",
+      "spring"
+    ],
     "priceMinor": 890000,
     "currency": "TRY",
     "priceDisplay": "8.900 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "41", "stock": null },
-      { "size": "42", "stock": null },
-      { "size": "43", "stock": null },
-      { "size": "44", "stock": null }
+      {
+        "size": "41",
+        "stock": null
+      },
+      {
+        "size": "42",
+        "stock": null
+      },
+      {
+        "size": "43",
+        "stock": null
+      },
+      {
+        "size": "44",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/shoes-brown.svg",
+    "imageMain": "/demo/shoes-brown.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-ay-5001",
     "description": "El dikişi, deri taban, klasik derby form.",
-    "relatedSkus": ["GG-TK-1001", "GG-KM-6001"]
+    "relatedSkus": [
+      "GG-TK-1001",
+      "GG-KM-6001"
+    ]
   },
   {
     "sku": "GG-KM-6001",
@@ -187,20 +360,41 @@
     "color": "Siyah",
     "colorFamily": "black",
     "composition": "%100 Deri",
-    "fabrics": [{ "name": "deri", "percentage": 100 }],
-    "seasons": ["spring", "summer", "autumn", "winter"],
+    "fabrics": [
+      {
+        "name": "deri",
+        "percentage": 100
+      }
+    ],
+    "seasons": [
+      "spring",
+      "summer",
+      "autumn",
+      "winter"
+    ],
     "priceMinor": 245000,
     "currency": "TRY",
     "priceDisplay": "2.450 ₺",
     "sizeSystem": "EU",
     "variants": [
-      { "size": "95", "stock": null },
-      { "size": "100", "stock": null },
-      { "size": "105", "stock": null }
+      {
+        "size": "95",
+        "stock": null
+      },
+      {
+        "size": "100",
+        "stock": null
+      },
+      {
+        "size": "105",
+        "stock": null
+      }
     ],
-    "imageMain": "/demo/belt-black.svg",
+    "imageMain": "/demo/belt-black.png",
     "productUrl": "https://www.giovanegentile.com/p/gg-km-6001",
     "description": "3,5 cm genişlik, mat tokalı.",
-    "relatedSkus": ["GG-TK-1001"]
+    "relatedSkus": [
+      "GG-TK-1001"
+    ]
   }
 ]

@@ -2,7 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import type { LiveServerMessage, Session } from "@google/genai";
-import { TOOL_DECLARATIONS } from "@/lib/ai/toolSchema";
+import type { FunctionDeclaration } from "@google/genai";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Gemini Live client — real-time voice + function calling, browser-side.
@@ -31,6 +31,9 @@ export interface FunctionCall {
 
 export interface GeminiLiveConfig {
   model: string;
+  /** Tool surface for THIS tenant — page control and try-on only exist for
+      brands that switched them on, so the schema cannot be a module constant. */
+  toolDeclarations: FunctionDeclaration[];
   onAudioData?: (base64Pcm: string) => void;
   onTranscription?: (text: string, isUser: boolean) => void;
   onToolCall?: (calls: FunctionCall[]) => void;
@@ -64,7 +67,7 @@ export class GeminiLiveClient {
     this.session = await this.ai.live.connect({
       model: this.config.model,
       config: {
-        tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+        tools: [{ functionDeclarations: this.config.toolDeclarations }],
         outputAudioTranscription: {},
         inputAudioTranscription: {},
         // Effectively unlimited session length — without it the Live server

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Locale, PublicTenantConfig } from "@/lib/tenant/types";
 import { ProductCards, type ProductCard } from "./ProductCards";
 import { Composer } from "./Composer";
+import { TryOnModal } from "./TryOnModal";
 import { useVoiceSession } from "@/lib/voice/useVoiceSession";
+import { buildPageTools, PAGE_TOOLS, TOOL_DECLARATIONS } from "@/lib/ai/toolSchema";
 
 /* ══════════════════════════════════════════════════════════════════════════
    The widget itself. Runs inside the iframe on the brand's page.
@@ -32,12 +34,27 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const blocksRef = useRef<Block[]>(blocks);
-  blocksRef.current = blocks;
+  // Writing a ref during render has no effect on that render and React flags
+  // it; the mirror exists for callbacks that fire later, so it is updated here.
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
   // Session id identifies a conversation for metering and rate limiting. It is
   // random per widget load and never leaves this origin — no cross-site value.
   const sessionId = useMemo(
     () => (globalThis.crypto?.randomUUID?.() ?? String(Date.now() + Math.random())).slice(0, 36),
     [],
+  );
+
+  // The outfit the mannequin view will dress: whatever the last products block
+  // put on screen. Mirrors the source product's rule that show_on_model dresses
+  // "the outfit CURRENTLY IN THE SUGGESTIONS PANEL" rather than taking a list —
+  // the model cannot then promise a piece the customer never saw.
+  const [tryOnProducts, setTryOnProducts] = useState<ProductCard[] | null>(null);
+
+  const toolDeclarations = useMemo(
+    () => [...TOOL_DECLARATIONS, ...buildPageTools(config)],
+    [config],
   );
 
   const greeting = config.persona.greeting[locale] ?? "Merhaba. Size nasıl yardımcı olabilirim?";
@@ -96,6 +113,64 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
     }
     return undefined;
   }, []);
+
+  /* ── page control ───────────────────────────────────────────────────────
+     The widget cannot scroll, route or open anything on the brand's page — it
+     is sandboxed in an iframe on a different origin. Every page action is a
+     REQUEST to the loader, which carries it out on the host side. The model is
+     told (in the prompt) to phrase these in the present tense for exactly this
+     reason: we ask, and we never learn whether it landed. */
+  const runPageAction = useCallback(
+    (name: string, args: Record<string, unknown>) => {
+      if (!config.pageControl?.enabled || !PAGE_TOOLS.has(name)) return;
+      if (name === "openCategory") {
+        // The model names a category id; the URL is ours to resolve, so a
+        // hallucinated id simply finds nothing rather than navigating the
+        // customer somewhere arbitrary.
+        const category = config.pageControl.categories.find((c) => c.id === String(args.category));
+        if (!category) return;
+        postToHost("page-action", { action: "open-category", id: category.id, url: category.url });
+        return;
+      }
+      if (name === "showProduct") {
+        const sku = String(args.sku ?? "");
+        if (!sku) return;
+        postToHost("page-action", {
+          action: "show-product",
+          sku,
+          url: findShownProduct(sku)?.url,
+        });
+        return;
+      }
+      if (name === "scrollToSection") {
+        const section = config.pageControl.sections.find((s) => s.id === String(args.section));
+        if (!section) return;
+        postToHost("page-action", { action: "scroll-to-section", id: section.id });
+        return;
+      }
+      if (name === "openCart" || name === "closeCart") {
+        postToHost("page-action", { action: name === "openCart" ? "open-cart" : "close-cart" });
+      }
+    },
+    [config.pageControl, postToHost, findShownProduct],
+  );
+
+  /* ── mannequin ──────────────────────────────────────────────────────────
+     Dresses the outfit currently on screen. Refuses (rather than rendering
+     something arbitrary) when nothing is on screen yet — the model is
+     instructed to call showProducts first, and an empty render would be a
+     picture of clothes the customer never chose. */
+  const openTryOn = useCallback(() => {
+    if (!config.tryOn?.enabled) return;
+    for (let i = blocksRef.current.length - 1; i >= 0; i--) {
+      const b = blocksRef.current[i];
+      if (b.kind === "products" && b.products.length) {
+        setTryOnProducts(b.products);
+        postToHost("event", { event: "products_shown" });
+        return;
+      }
+    }
+  }, [config.tryOn, postToHost]);
 
   /* ── conversation (text) ──────────────────────────────────────────────── */
 
@@ -202,6 +277,11 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
                 const shown = findShownProduct(sku);
                 postToHost("add-to-cart", { ...tool.args, url: shown?.url });
               }
+              if (PAGE_TOOLS.has(tool.name)) runPageAction(tool.name, tool.args);
+              // Deferred a tick: showOnModel arrives in the same stream as the
+              // showProducts that precedes it, and the outfit is read from
+              // state that has not committed yet at this point.
+              if (tool.name === "showOnModel") setTimeout(openTryOn, 0);
             }
 
             if (typeof event.error === "string") setFatal(event.error);
@@ -213,7 +293,10 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
         setStreaming(false);
       }
     },
-    [blocks, config.slug, context, locale, postToHost, sessionId, streaming, findShownProduct],
+    [
+      blocks, config.slug, context, locale, postToHost, sessionId, streaming,
+      findShownProduct, runPageAction, openTryOn,
+    ],
   );
 
   const onProductClick = useCallback(
@@ -243,34 +326,20 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
     onTranscript: (role, text) => {
       setBlocks((prev) => [...prev, { kind: "text", role: role === "user" ? "user" : "assistant", text }]);
     },
+    toolDeclarations,
     onShowProducts: (skus, title) => {
-      // Voice tool calls carry skus only (no full card data, unlike the text
-      // route's server-side enrichment) — resolve them the same way the read
-      // tool already did over /api/voice/tool, via one more lookup here so
-      // the cards render with images/prices instead of a bare list.
-      void fetch("/api/voice/tool", {
+      // Voice tool calls carry skus only — the text route enriches
+      // showProducts server-side before streaming, but the Live socket cannot.
+      // /api/cards returns the display fields (image, url, sizes) that the
+      // model-facing projection deliberately omits.
+      void fetch("/api/cards", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tenant: config.slug, name: "getProducts", args: { skus } }),
+        body: JSON.stringify({ tenant: config.slug, skus }),
       })
         .then((r) => r.json())
-        .then((data: { products?: { sku: string; name: string; price: string }[] }) => {
-          // getProducts returns the trimmed model-facing projection (no image/
-          // url) — cross-reference against anything already shown for the
-          // richer fields, falling back to a text-only card otherwise.
-          const products: ProductCard[] = (data.products ?? []).map((p) => {
-            const known = findShownProduct(p.sku);
-            return (
-              known ?? {
-                sku: p.sku,
-                name: p.name,
-                price: p.price,
-                image: "",
-                url: "",
-                sizes: [],
-              }
-            );
-          });
+        .then((data: { products?: ProductCard[] }) => {
+          const products = data.products ?? [];
           if (products.length) {
             setBlocks((prev) => [...prev, { kind: "products", title, products }]);
             postToHost("event", { event: "products_shown" });
@@ -282,6 +351,11 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
       const shown = findShownProduct(args.sku);
       postToHost("add-to-cart", { ...args, url: shown?.url });
     },
+    onPageAction: runPageAction,
+    // Deferred a tick for the same reason as the text path: showOnModel often
+    // arrives alongside the showProducts whose cards it means to dress, and
+    // that state has not committed yet.
+    onShowOnModel: () => setTimeout(openTryOn, 0),
     onError: (message) => setVoiceFatal(message),
   });
 
@@ -321,13 +395,27 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
               {block.text}
             </div>
           ) : (
-            <ProductCards
-              key={i}
-              title={block.title}
-              products={block.products}
-              onSelect={onProductClick}
-              onAddToCart={onAddToCart}
-            />
+            <div key={i}>
+              <ProductCards
+                title={block.title}
+                products={block.products}
+                onSelect={onProductClick}
+                onAddToCart={onAddToCart}
+              />
+              {config.tryOn?.enabled && (
+                // Offered on every outfit, not just when the stylist thinks to
+                // suggest it: the customer asking for it themselves is the
+                // clearest possible consent, and the model routinely forgets
+                // to offer (the same reliability gap showProducts has).
+                <button
+                  type="button"
+                  className="rv-tryon-cta"
+                  onClick={() => setTryOnProducts(block.products)}
+                >
+                  Mankende gör
+                </button>
+              )}
+            </div>
           ),
         )}
 
@@ -367,6 +455,17 @@ export function Widget({ config, hostOrigin }: { config: PublicTenantConfig; hos
           </button>
         )}
       </div>
+
+      {tryOnProducts && (
+        <TryOnModal
+          tenantSlug={config.slug}
+          sessionId={sessionId}
+          products={tryOnProducts}
+          onClose={() => setTryOnProducts(null)}
+          onSelect={onProductClick}
+          onAddToCart={onAddToCart}
+        />
+      )}
     </div>
   );
 }

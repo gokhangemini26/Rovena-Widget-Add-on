@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { getActiveTenant } from "@/lib/tenant/resolve";
 import { getCatalog } from "@/lib/catalog";
 import { buildStaticPrompt, buildTurnContext } from "@/lib/ai/prompt";
-import { TOOL_DECLARATIONS, READ_TOOLS, executeReadTool } from "@/lib/ai/tools";
+import { buildToolDeclarations, READ_TOOLS, executeReadTool } from "@/lib/ai/tools";
 import { logUsage } from "@/lib/metering/usage";
 import { corsHeaders, isAllowedOrigin, requestOrigin } from "@/lib/security/origin";
 import { checkRate, clientIp } from "@/lib/security/ratelimit";
@@ -118,6 +118,10 @@ export async function POST(req: Request) {
   // volatile fact goes in the turn context below instead — mixing them is what
   // silently multiplies the bill.
   const systemInstruction = buildStaticPrompt(tenant, products);
+  // Tenant-dependent: the page-control and try-on tools only exist for brands
+  // that switched them on, and their section/category enums come from that
+  // brand's own configuration.
+  const toolDeclarations = buildToolDeclarations(tenant);
   const turnContext = buildTurnContext({
     locale,
     currentSku: typeof body.currentSku === "string" ? body.currentSku : undefined,
@@ -150,7 +154,7 @@ export async function POST(req: Request) {
 
           const config = {
             systemInstruction,
-            tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+            tools: [{ functionDeclarations: toolDeclarations }],
             toolConfig: forceText
               ? { functionCallingConfig: { mode: FunctionCallingConfigMode.NONE } }
               : undefined,

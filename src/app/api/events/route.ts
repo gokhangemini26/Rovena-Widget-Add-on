@@ -20,6 +20,15 @@ const ALLOWED_EVENTS = new Set([
   "product_clicked",
   "add_to_cart",
   "cart_bridge_failed",
+  // Page control. `page_action_failed` is the one that earns its place: a
+  // stylist scrolling to a section the brand never tagged is indistinguishable
+  // from a broken AI unless the miss is counted.
+  "page_scrolled",
+  "page_navigated",
+  "page_action_failed",
+  "cart_opened",
+  "cart_closed",
+  "try_on_rendered",
 ]);
 
 export async function OPTIONS(req: Request) {

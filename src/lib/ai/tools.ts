@@ -17,7 +17,14 @@ import type { Tenant } from "@/lib/tenant/types";
    tenant's own catalog, so a hallucinated sku returns a miss the model must
    recover from rather than a product card the customer sees. */
 
-export { TOOL_DECLARATIONS, READ_TOOLS, UI_TOOLS } from "./toolSchema";
+export {
+  TOOL_DECLARATIONS,
+  buildToolDeclarations,
+  buildPageTools,
+  READ_TOOLS,
+  UI_TOOLS,
+  PAGE_TOOLS,
+} from "./toolSchema";
 
 const MAX_SEARCH_RESULTS = 12;
 
